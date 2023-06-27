@@ -1,1 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PDF Upload and Merge</title>
+</head>
+<body>
+    <h1>PDF Upload and Merge</h1>
+
+    {% with messages = get_flashed_messages() %}
+    {% if messages %}
+    <ul class="flash-messages">
+        {% for message in messages %}
+        <li>{{ message }}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+    {% endwith %}
+
+    <form method="POST" action="/upload" enctype="multipart/form-data">
+        <input type="file" name="pdf_files" accept=".pdf" multiple required>
+        <br><br>
+        <input type="submit" value="Upload and Merge">
+    </form>
+
+</body>
+</html>
 
