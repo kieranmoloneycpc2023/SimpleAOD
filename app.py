@@ -1,5 +1,4 @@
-
-from flask import Flask, render_template, request, redirect
+from flask import Flask, render_template, request, redirect, flash
 from werkzeug.utils import secure_filename
 import os
 import re
@@ -7,6 +6,9 @@ from PyPDF2 import PdfFileReader, PdfFileMerger
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
+app.config['ALLOWED_EXTENSIONS'] = {'pdf'}
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB maximum file size
+app.secret_key = 'your_secret_key'
 
 # Route for the main page
 @app.route('/')
@@ -18,11 +20,8 @@ def index():
 def upload():
     # Check if the 'pdf_files' field exists in the request
     if 'pdf_files' not in request.files:
+        flash('No PDF files uploaded.')
         return redirect('/')
-
-    # Create the uploads folder if it doesn't exist
-    if not os.path.exists(app.config['UPLOAD_FOLDER']):
-        os.makedirs(app.config['UPLOAD_FOLDER'])
 
     files = request.files.getlist('pdf_files')
     filenames = []
@@ -37,11 +36,19 @@ def upload():
     # Extract dates from the uploaded PDFs
     dates = extract_dates(filenames)
 
+    if len(dates) == 0:
+        flash('No dates found in the uploaded PDF files.')
+        return redirect('/')
+
     # Sort the filenames based on the extracted dates
     sorted_filenames = sort_files_by_date(filenames, dates)
 
     # Merge the sorted PDFs into a single PDF
     merged_filename = merge_pdfs(sorted_filenames)
+
+    if merged_filename is None:
+        flash('Error occurred while merging PDF files.')
+        return redirect('/')
 
     return redirect('/result?filename=' + merged_filename)
 
@@ -53,7 +60,8 @@ def result():
 
 # Helper function to check if the file extension is allowed
 def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() == 'pdf'
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
 # Helper function to extract dates from PDFs
 def extract_dates(filenames):
@@ -84,10 +92,14 @@ def merge_pdfs(filenames):
         merger.add_blank_page()
 
     merged_filename = 'merged.pdf'
-    merger.write(os.path.join(app.config['UPLOAD_FOLDER'], merged_filename))
-    merger.close()
-
-    return merged_filename
+    output_path = os.path.join(app.config['UPLOAD_FOLDER'], merged_filename)
+    try:
+        merger.write(output_path)
+        merger.close()
+        return merged_filename
+    except Exception as e:
+        print(str(e))
+        return None
 
 if __name__ == '__main__':
     app.run()
