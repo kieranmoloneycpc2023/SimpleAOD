@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, flash
+from flask import Flask, render_template, request, redirect, flash, send_from_directory
 from werkzeug.utils import secure_filename
 import os
 import re
@@ -52,11 +52,15 @@ def upload():
 
     return redirect('/result?filename=' + merged_filename)
 
-# Route to display the merged PDF
+# Route to display the merged PDF and allow download
 @app.route('/result')
 def result():
     filename = request.args.get('filename')
-    return render_template('result.html', filename=filename)
+    if filename:
+        return send_from_directory(directory=app.config['UPLOAD_FOLDER'], filename=filename, as_attachment=True)
+    else:
+        flash('No merged PDF available.')
+        return redirect('/')
 
 # Helper function to check if the file extension is allowed
 def allowed_file(filename):
@@ -99,7 +103,4 @@ def merge_pdfs(filenames):
         return merged_filename
     except Exception as e:
         print(str(e))
-        return None
-
-if __name__ == '__main__':
-    app.run()
+       
